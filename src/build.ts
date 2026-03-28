@@ -155,18 +155,35 @@ class OPNsenseMCPServer {
       throw new Error(\`Method \${args.method} not found in module \${tool.module}\`);
     }
 
-    // Call the method with params (if provided)
-    console.error(\`Calling \${tool.module}.\${args.method} with params:\`, args.params);
-    
     // Extract params, excluding the method field
+    console.error(\`Calling \${tool.module}.\${args.method} with params:\`, args.params);
     const { method: _, params = {}, ...otherArgs } = args;
     const callParams = { ...params, ...otherArgs };
-    
-    // Only pass parameters if there are any
-    if (Object.keys(callParams).length > 0) {
-      return await method.call(moduleObj, callParams);
-    } else {
+
+    // Parse the function signature to get parameter names (excluding 'config')
+    // Methods use positional args, e.g. pingSet(data, config), pingStart(jobid, data, config)
+    const fnSrc = method.toString();
+    const sigMatch = fnSrc.match(/async\\s+\\w+\\(([^)]*)\\)/);
+    const paramNames = sigMatch
+      ? sigMatch[1].split(',').map(p => p.trim()).filter(p => p && p !== 'config')
+      : [];
+
+    if (paramNames.length === 0) {
       return await method.call(moduleObj);
+    } else if (paramNames.length === 1 && paramNames[0] === 'data') {
+      const data = callParams.data !== undefined ? callParams.data : callParams;
+      return await method.call(moduleObj, data);
+    } else {
+      const positionalArgs = paramNames.map((name, i) => {
+        if (callParams[name] !== undefined) return callParams[name];
+        if (name === 'data' && i === paramNames.length - 1) {
+          const remaining = { ...callParams };
+          paramNames.forEach(n => { if (n !== 'data') delete remaining[n]; });
+          return Object.keys(remaining).length > 0 ? remaining : undefined;
+        }
+        return undefined;
+      });
+      return await method.call(moduleObj, ...positionalArgs);
     }
   }
 

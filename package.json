@@ -18,6 +18,7 @@
   },
   "scripts": {
     "start": "node index.js",
+    "start:hosted": "tsx src/hosted.ts",
     "dev": "tsx watch index.ts",
     "help": "node index.js --help",
     "build": "tsx src/build.ts",
@@ -38,11 +39,13 @@
   "author": "Richard Stovall",
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.1",
+    "@modelcontextprotocol/sdk": "^1.12.0",
     "@richard-stovall/opnsense-typescript-client": "0.5.3",
+    "express": "^4.21.0",
     "zod": "^3.25.67"
   },
   "devDependencies": {
+    "@types/express": "^5.0.0",
     "@types/node": "^20.11.0",
     "tsx": "^4.20.3",
     "typescript": "^5.3.3"
