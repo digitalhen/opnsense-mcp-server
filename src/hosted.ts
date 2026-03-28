@@ -471,7 +471,7 @@ app.post("/token", (req, res) => {
   res.json({
     access_token: token,
     token_type: "Bearer",
-    // No expiry — token lives as long as the server is running
+    expires_in: 31536000, // 1 year — token lives as long as the server is running
   });
 });
 
