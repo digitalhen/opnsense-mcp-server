@@ -10,7 +10,10 @@ A modular Model Context Protocol (MCP) server that provides **88 module-based to
 - **Plugin Support** - Optional support for 64 plugin modules
 - **Smart Organization** - Related operations grouped by module for easier discovery
 
-The MCP server acts as a bridge between AI assistants (like Claude Desktop) and your OPNsense firewall, providing secure API access through a modular tool interface.
+The MCP server acts as a bridge between AI assistants (like Claude Desktop, Claude.ai, Cursor) and your OPNsense firewall, providing secure API access through a modular tool interface.
+
+- **stdio mode** — runs as a local process for Claude Desktop, Claude Code, and Cursor
+- **hosted mode** — runs as an HTTP server with OAuth for Claude.ai and other remote MCP clients
 
 <small>Usage in Claude Desktop</small>
 ![OPNsense MCP Server Network Architecture](https://github.com/user-attachments/assets/c7742683-7f25-437a-9747-250f48472a6a)
@@ -151,6 +154,73 @@ Add to your Cursor settings (`.cursor/mcp.json` in your project or `~/.cursor/mc
 }
 ```
 
+### Claude.ai (Hosted Mode)
+
+For Claude.ai and other remote MCP clients, you can run the server in **hosted mode** with HTTP transport and OAuth authentication.
+
+#### Prerequisites
+
+- Docker (recommended) or Node.js 18+
+- A reverse proxy or tunnel (e.g. Cloudflare Tunnel, ngrok) to expose the server publicly with HTTPS
+- An OPNsense API key and secret
+
+#### Quick Start with Docker
+
+```bash
+# Clone the repository
+git clone https://github.com/Pixelworlds/opnsense-mcp-server.git
+cd opnsense-mcp-server
+
+# Create your .env file
+cp .env.example .env
+# Edit .env with your OPNsense credentials, OAuth password, and public URL
+```
+
+Edit `.env`:
+
+```env
+OPNSENSE_URL=https://192.168.1.1
+OPNSENSE_API_KEY=your-api-key
+OPNSENSE_API_SECRET=your-api-secret
+OPNSENSE_VERIFY_SSL=false
+OAUTH_PASSWORD=your-secret-password
+PUBLIC_URL=https://opnsense-mcp.yourdomain.com
+PORT=3100
+```
+
+```bash
+# Start the server
+docker compose up -d --build
+```
+
+#### Expose via Cloudflare Tunnel
+
+If you use Cloudflare Tunnel, add a public hostname route pointing to `http://opnsense-mcp:3100` (or `http://localhost:3100` if not on the same Docker network).
+
+#### Connect to Claude.ai
+
+1. Go to Claude.ai **Settings > Integrations > Add custom connector**
+2. **Name**: OPNsense
+3. **URL**: `https://opnsense-mcp.yourdomain.com/mcp`
+4. Leave OAuth Client ID/Secret blank (the server handles dynamic client registration)
+5. When prompted, enter your `OAUTH_PASSWORD` to authorize
+
+#### Running without Docker
+
+```bash
+npm install
+npx tsx src/hosted.ts
+```
+
+#### How OAuth Works
+
+The hosted mode implements OAuth 2.0 with PKCE for Claude.ai compatibility:
+
+1. Claude.ai discovers endpoints via `/.well-known/oauth-authorization-server`
+2. It registers itself as an OAuth client via `/register`
+3. You're redirected to a login page where you enter your `OAUTH_PASSWORD`
+4. Claude.ai receives an access token and uses it for all MCP requests
+
 ### Configuration Options
 
 The server accepts configuration through environment variables:
@@ -160,6 +230,12 @@ The server accepts configuration through environment variables:
 - `OPNSENSE_API_SECRET` - API secret for authentication (required)
 - `INCLUDE_PLUGINS` - Set to "true" to enable 64 plugin module tools (optional)
 - `OPNSENSE_VERIFY_SSL` - Set to "false" to disable SSL verification (development only)
+
+**Hosted mode only:**
+
+- `OAUTH_PASSWORD` - Password for the OAuth authorization page (required for hosted mode)
+- `PUBLIC_URL` - Public URL of the server, e.g. `https://opnsense-mcp.yourdomain.com` (required for hosted mode)
+- `PORT` - HTTP server port (default: `3100`)
 
 ## How It Works
 
